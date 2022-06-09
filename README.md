@@ -1,6 +1,10 @@
 # Updated 
 
-## Changes made:
+## Changes made: 
+
+6/6/2022: 
+Made a small edit to guidedMedianFilter.py to allow for other datasets to be used
+Commented out a few lines in models.py that were giving issues with certain models
 
 # DeepHyperX
 
