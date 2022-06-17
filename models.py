@@ -1032,8 +1032,9 @@ def train(
 
     save_epoch = epoch // 20 if epoch > 20 else 1
 
-    losses = np.zeros(1000000)
-    mean_losses = np.zeros(100000000)
+# 6/10/2022 Increased losses and mean_losses by factor of 10 for DFC2018_HSI Dataset
+    losses = np.zeros(10000000)
+    mean_losses = np.zeros(1000000000)
     iter_ = 1
     #Removed durring 6/6/22 testing
     #loss_win, val_win = None, None

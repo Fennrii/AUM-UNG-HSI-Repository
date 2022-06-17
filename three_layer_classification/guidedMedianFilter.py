@@ -33,6 +33,7 @@ def guidedMedianFilter(inputImg, hsiData):
     
     rows = np.shape(predImage)[0]
     cols = np.shape(predImage)[1]
+    # bands added to allow for other datasets Jun/1/22
     bands = np.shape(hsiData)[2]
     
     for i in range(1,rows-2):

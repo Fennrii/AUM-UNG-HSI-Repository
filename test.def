@@ -7,7 +7,6 @@ From: ubuntu:21.04
     mkdir ${SINGULARITY_ROOTFS}/workspace/three_layer_classification
     # Create a directory called "data" and a directory called "Datasets" inside that folder on the host system.
     mkdir -p data/Datasets
-
 %files
     # Copy files from the host machine to the workspce folder on the Singularity image.
     main.py /workspace
