@@ -2,6 +2,11 @@
 
 ## Changes made:
 
+### aum-dataset.sif:version2 update
+
+Changed the threeLayer model to allow it to be run using different datasets 
+Updated models.py to allow for larger datasets
+
 # DeepHyperX
 
 A Python tool to perform deep learning experiments on various hyperspectral datasets.
