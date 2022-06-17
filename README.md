@@ -5,7 +5,10 @@
 ### aum-dataset.sif:version2 update
 
 Changed the threeLayer model to allow it to be run using different datasets 
+
 Updated models.py to allow for larger datasets
+
+Container Link: [aum-dataset.sif:version2](https://cloud.sylabs.io/library/andrew_satory/aum_ung_three_layer/aum-dataset)
 
 # DeepHyperX
 
