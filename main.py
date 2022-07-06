@@ -329,6 +329,9 @@ for run in range(N_RUNS):
 
     if MODEL == "SVM_grid":
         print("Running a grid search SVM")
+        train1 = time.perf_counter()
+        # Start training
+        print("------START TRAIN------")
         # Grid search SVM (linear and RBF)
         X_train, y_train = build_dataset(img, train_gt, ignored_labels=IGNORED_LABELS)
         class_weight = "balanced" if CLASS_BALANCING else None
@@ -337,10 +340,17 @@ for run in range(N_RUNS):
             clf, SVM_GRID_PARAMS, verbose=5, n_jobs=4
         )
         clf.fit(X_train, y_train)
-        print("SVM best parameters : {}".format(clf.best_params_))
-        prediction = clf.predict(img.reshape(-1, N_BANDS))
+        # Stop training
+        training_time = time.perf_counter() - train1
         save_model(clf, MODEL, DATASET)
+        test_time1 = time.perf_counter()
+        print("SVM best parameters : {}".format(clf.best_params_))
+        # Start testing
+        prediction = clf.predict(img.reshape(-1, N_BANDS))
+        # save_model(clf, MODEL, DATASET)
         prediction = prediction.reshape(img.shape[:2])
+        # Stop testing
+        testing_time = time.perf_counter() - test_time1
     elif MODEL == "SVM":
         # pr.enable()
         train1 = time.perf_counter()
