@@ -44,10 +44,13 @@ From: ubuntu:21.04
     chmod +x ~/miniconda.sh && \
     ~/miniconda.sh -b -p /opt/conda && \
     rm ~/miniconda.sh
-
+    
+    export PATH=/opt/conda/bin:$PATH
+    conda install -y numba
 %runscript
     # When the SIF file is run, it will download the packages listed in requirements.txt if not already installed.
-    pip3 install -q --no-cache-dir --no-warn-script-location -r /workspace/requirements.txt
+    echo "installing packages"
+    pip3 install --no-cache-dir --no-warn-script-location -r /workspace/requirements.txt
     # It will then run start.sh
     sh /workspace/start.sh
 
@@ -61,7 +64,6 @@ From: ubuntu:21.04
     else
         echo "Container base is not Ubuntu."
     fi
-
 %labels
     Author d@sylabs.io
     Version v0.0.1
