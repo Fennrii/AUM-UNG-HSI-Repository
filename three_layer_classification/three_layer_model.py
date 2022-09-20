@@ -9,6 +9,9 @@ from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.preprocessing import MinMaxScaler
 import numpy as np
 from tqdm import tqdm
+# added numba and jit in July 11th
+import numba
+from numba import jit
 
 class threeLayerHSIClassification(BaseEstimator, ClassifierMixin):
     """Fits a logistic regression model on tree embeddings.
@@ -17,7 +20,7 @@ class threeLayerHSIClassification(BaseEstimator, ClassifierMixin):
         self.kwargs = kwargs
         self.scaler = MinMaxScaler(feature_range=(0, 0.95),clip=True)
 
-    
+    @jit (forceobj = True, parallel=True)
     def fit(self, X, y):
         numOfSamples, numOfFeatures = np.shape(X)
         self.numOfClasses = np.unique(y).shape[0]
@@ -32,7 +35,7 @@ class threeLayerHSIClassification(BaseEstimator, ClassifierMixin):
         #There are 16 references. Each has 200x1 vector.
         self.allReferences = np.zeros((self.numOfClasses,numOfFeatures))
         
-        for classLabel in range(self.numOfClasses):
+        for classLabel in numba.prange(self.numOfClasses):
             P_c = X_scaled[(y == classLabel+1),:] #current class training samples
             P_r = X[(y == classLabel+1),:] #current class training samples
             

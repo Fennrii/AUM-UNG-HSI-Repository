@@ -439,16 +439,15 @@ def show_results(results, model, dataset, training_sample, gpu, runs, label_valu
     #                       'rownames': label_values, 'columnnames': label_values})
     c_matrix += "Confusion matrix:\n"
     c_matrix += str(cm)
-    c_matrix += "\n---\n"
+    c_matrix += "\n"
 
     if agregated:
         agregatedText += ("Accuracy: {:.03f} +- {:.03f}\n".format(np.mean(accuracies),
                                                          np.std(accuracies)))
     else:
         text += "Accuracy: {:.03f}%\n".format(accuracy)
-    text += "---\n"
 
-    text += "F1 scores:\n"
+
     if agregated:
         for label, score, std in zip(label_values, F1_scores_mean,
                                      F1_scores_std):
@@ -456,7 +455,6 @@ def show_results(results, model, dataset, training_sample, gpu, runs, label_valu
     else:
         for label, score in zip(label_values, F1scores):
             text += "\t{}: {:.03f}\n".format(label, score)
-    text += "---\n"
 
     if agregated:
         agregatedText += ("Kappa: {:.03f} +- {:.03f}\n".format(np.mean(kappas),

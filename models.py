@@ -20,7 +20,6 @@ from utils import grouper, sliding_window, count_sliding_window, camel_to_snake
 def get_model(name, **kwargs):
     """
     Instantiate and obtain a model with adequate hyperparameters
-
     Args:
         name: string of the model name
         kwargs: hyperparameters
@@ -1010,7 +1009,6 @@ def train(
 ):
     """
     Training loop to optimize a network for several epochs and a specified loss
-
     Args:
         net: a PyTorch model
         optimizer: a PyTorch optimizer
