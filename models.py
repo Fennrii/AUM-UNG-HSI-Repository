@@ -79,7 +79,8 @@ def get_model(name, **kwargs):
         optimizer = optim.SGD(
             model.parameters(), lr=lr, momentum=0.9, weight_decay=0.0005
         )
-        epoch = kwargs.setdefault("epoch", 200)
+        # July 25 changed default epochs from 200 to 100
+        epoch = kwargs.setdefault("epoch", 100)
         criterion = nn.CrossEntropyLoss(weight=kwargs["weights"])
         # kwargs.setdefault('scheduler', optim.lr_scheduler.MultiStepLR(optimizer, milestones=[epoch // 2, (5 * epoch) // 6], gamma=0.1))
     elif name == "hu":
