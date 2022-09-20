@@ -1,15 +1,19 @@
 Bootstrap: docker
-From: ubuntu:21.04
+From: ubuntu:22.04
 
 %setup
     # Create a directory called "workspace" at the root of the image's file system.
     mkdir ${SINGULARITY_ROOTFS}/workspace
     mkdir ${SINGULARITY_ROOTFS}/workspace/three_layer_classification
+    #mkdir ${SINGULARITY_ROOTFS}/workspace/SpectralNet
+    mkdir ${SINGULARITY_ROOTFS}/workspace/A2S2KResNet
     # Create a directory called "data" and a directory called "Datasets" inside that folder on the host system.
     mkdir -p data/Datasets
 %files
     # Copy files from the host machine to the workspce folder on the Singularity image.
     main.py /workspace
+    #mainSpectral.py /workspace
+    #mainTesting.py /workspace
     models.py /workspace
     datasets.py /workspace
     custom_datasets.py /workspace
@@ -20,6 +24,9 @@ From: ubuntu:21.04
     requirements.txt /workspace
     start.sh /workspace
     three_layer_classification/*.py /workspace/three_layer_classification
+    A2S2KResNet/*.py /workspace/A2S2KResNet
+    #SpectralNet/*.py /workspace/SpectralNet
+    
    
     
 %environment
@@ -36,21 +43,29 @@ From: ubuntu:21.04
     apt-get install -y tzdata
     apt-get install -y bzip2
     apt-get install -y ca-certificates
+    apt-get install ffmpeg libsm6 libxext6  -y
     ln -fs /usr/share/zoneinfo/America/New_York /etc/localtime
     dpkg-reconfigure --frontend noninteractive tzdata
-    apt install -y python3-pip
-    rm -rf /var/lib/apt/lists/*
     curl -o ~/miniconda.sh -O  https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh  && \
     chmod +x ~/miniconda.sh && \
     ~/miniconda.sh -b -p /opt/conda && \
     rm ~/miniconda.sh
     
     export PATH=/opt/conda/bin:$PATH
+    conda clean -a -y
+    conda install -y python=3.7.7
     conda install -y numba
+    conda install -y cudatoolkit=10.1.243
+    conda install -y pytorch=1.4.0
+    conda install -y opencv=3.4.2
+    
+    apt install -y python3-pip
+    rm -rf /var/lib/apt/lists/*
+    
 %runscript
     # When the SIF file is run, it will download the packages listed in requirements.txt if not already installed.
     echo "installing packages"
-    pip3 install --no-cache-dir --no-warn-script-location -r /workspace/requirements.txt
+    pip3 install --no-cache-dir -q --no-warn-script-location -r /workspace/requirements.txt
     # It will then run start.sh
     sh /workspace/start.sh
 

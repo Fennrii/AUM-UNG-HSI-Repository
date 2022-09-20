@@ -1,11 +1,9 @@
 # -*- coding: utf-8 -*-
 """
 DEEP LEARNING FOR HYPERSPECTRAL DATA.
-
 This script allows the user to run several deep models (and SVM baselines)
 against various hyperspectral datasets. It is designed to quickly benchmark
 state-of-the-art CNNs on various public hyperspectral datasets.
-
 This code is released under the GPLv3 license for non-commercial and research
 purposes only.
 For commercial use, please contact the authors.
@@ -115,7 +113,7 @@ group_dataset = parser.add_argument_group("Dataset")
 group_dataset.add_argument(
     "--training_sample",
     type=float,
-    default=10,
+    default=0.10,
     help="Percentage of samples to use for training (default: 10%%)",
 )
 group_dataset.add_argument(
@@ -336,8 +334,14 @@ for run in range(N_RUNS):
         X_train, y_train = build_dataset(img, train_gt, ignored_labels=IGNORED_LABELS)
         class_weight = "balanced" if CLASS_BALANCING else None
         clf = sklearn.svm.SVC(class_weight=class_weight)
+        # Removed n_jobs to put inside classifier
+        #clf = sklearn.model_selection.GridSearchCV(
+        #    clf, SVM_GRID_PARAMS, verbose=5, n_jobs=4
+        #)
+        
+        # Changed verbose=5 to verbose=0 to remove print statements Sept-6
         clf = sklearn.model_selection.GridSearchCV(
-            clf, SVM_GRID_PARAMS, verbose=5, n_jobs=4
+            clf, SVM_GRID_PARAMS, verbose=0
         )
         clf.fit(X_train, y_train)
         # Stop training
@@ -419,7 +423,7 @@ for run in range(N_RUNS):
         from sklearn.ensemble import RandomForestClassifier
 
         train1 = time.perf_counter()
-	# Start Training
+    # Start Training
         X_train, y_train = build_dataset(img, train_gt, ignored_labels=IGNORED_LABELS)
         X_train, y_train = sklearn.utils.shuffle(X_train, y_train)
         class_weight = "balanced" if CLASS_BALANCING else None
