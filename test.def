@@ -6,7 +6,7 @@ From: ubuntu:22.04
     mkdir ${SINGULARITY_ROOTFS}/workspace
     mkdir ${SINGULARITY_ROOTFS}/workspace/three_layer_classification
     #mkdir ${SINGULARITY_ROOTFS}/workspace/SpectralNet
-    mkdir ${SINGULARITY_ROOTFS}/workspace/A2S2KResNet
+    #mkdir ${SINGULARITY_ROOTFS}/workspace/A2S2KResNet
     # Create a directory called "data" and a directory called "Datasets" inside that folder on the host system.
     mkdir -p data/Datasets
 %files
@@ -24,7 +24,7 @@ From: ubuntu:22.04
     requirements.txt /workspace
     start.sh /workspace
     three_layer_classification/*.py /workspace/three_layer_classification
-    A2S2KResNet/*.py /workspace/A2S2KResNet
+    #A2S2KResNet/*.py /workspace/A2S2KResNet
     #SpectralNet/*.py /workspace/SpectralNet
     
    
@@ -51,21 +51,12 @@ From: ubuntu:22.04
     ~/miniconda.sh -b -p /opt/conda && \
     rm ~/miniconda.sh
     
-    export PATH=/opt/conda/bin:$PATH
-    conda clean -a -y
-    conda install -y python=3.7.7
-    conda install -y numba
-    conda install -y cudatoolkit=10.1.243
-    conda install -y pytorch=1.4.0
-    conda install -y opencv=3.4.2
-    
-    apt install -y python3-pip
     rm -rf /var/lib/apt/lists/*
     
 %runscript
     # When the SIF file is run, it will download the packages listed in requirements.txt if not already installed.
     echo "installing packages"
-    pip3 install --no-cache-dir -q --no-warn-script-location -r /workspace/requirements.txt
+    pip3 install --no-cache-dir -r /workspace/requirements.txt
     # It will then run start.sh
     sh /workspace/start.sh
 
