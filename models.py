@@ -1004,7 +1004,7 @@ def train(
     scheduler=None,
     display_iter=100,
     device=torch.device("cpu"),
-    #display=None,
+    display=None,
     val_loader=None,
     supervision="full",
 ):
@@ -1039,14 +1039,15 @@ def train(
     #loss_win, val_win = None, None
     val_accuracies = []
 
-    for e in tqdm(range(1, epoch + 1), desc="Training the network"):
+    for e in tqdm(range(1, epoch + 1), desc="Training the network", disable=True):
         # Set the network to training mode
         net.train()
         avg_loss = 0.0
 
         # Run the training loop for one epoch
+        # added disable=True 10/27
         for batch_idx, (data, target) in tqdm(
-            enumerate(data_loader), total=len(data_loader)
+            enumerate(data_loader), total=len(data_loader), disable=True
         ):
             # Load the data into the GPU if required
             data, target = data.to(device), target.to(device)
@@ -1072,16 +1073,19 @@ def train(
             losses[iter_] = loss.item()
             mean_losses[iter_] = np.mean(losses[max(0, iter_ - 100) : iter_ + 1])
 
-            if display_iter and iter_ % display_iter == 0:
-                string = "Train (epoch {}/{}) [{}/{} ({:.0f}%)]\tLoss: {:.6f}"
-                string = string.format(
-                    e,
-                    epoch,
-                    batch_idx * len(data),
-                    len(data) * len(data_loader),
-                    100.0 * batch_idx / len(data_loader),
-                    mean_losses[iter_],
-                )
+            #if display_iter and iter_ % display_iter == 0:
+                #string = "Train (epoch {}/{}) [{}/{} ({:.0f}%)]\tLoss: {:.6f}"
+                #string = string.format(
+                 #   e,
+                 #   epoch,
+                 #   batch_idx * len(data),
+                 #   len(data) * len(data_loader),
+                 #   100.0 * batch_idx / len(data_loader),
+                 #   mean_losses[iter_],
+                #)
+                
+                
+                
                 #Removed durring 6/6/22 testing
                 #update = None if loss_win is None else "append"
                 #loss_win = display.line(
@@ -1095,7 +1099,9 @@ def train(
                 #        "ylabel": "Loss",
                 #    },
                 #)
-                tqdm.write(string)
+                
+                
+                #tqdm.write(string)
 
                 #if len(val_accuracies) > 0:
                 #    val_win = display.line(

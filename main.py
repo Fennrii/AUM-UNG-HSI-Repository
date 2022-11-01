@@ -295,226 +295,237 @@ hyperparams = dict((k, v) for k, v in hyperparams.items() if v is not None)
 #         img, gt, LABEL_VALUES, viz, ignored_labels=IGNORED_LABELS
 #     )
 #     plot_spectrums(mean_spectrums, viz, title="Mean spectrum/class")
-if MODEL == "ResNet":
-    os.system("python A2S2KResNet/A2S2KResNet.py -d " + str(DATASET) + " -e 100 -i " + str(N_RUNS) + " -p 3 -vs " + str(SAMPLE_PERCENTAGE) + " -o adam")
-else:
-    results = []
-    # run the experiment several times
-    for run in range(N_RUNS):
-        if TRAIN_GT is not None and TEST_GT is not None:
-            train_gt = open_file(TRAIN_GT)
-            test_gt = open_file(TEST_GT)
-        elif TRAIN_GT is not None:
-            train_gt = open_file(TRAIN_GT)
-            test_gt = np.copy(gt)
-            w, h = test_gt.shape
-            test_gt[(train_gt > 0)[:w, :h]] = 0
-        elif TEST_GT is not None:
-            test_gt = open_file(TEST_GT)
-        else:
-            # Sample random training spectra
-            train_gt, test_gt = sample_gt(gt, SAMPLE_PERCENTAGE, mode=SAMPLING_MODE)
-        print(
-            "{} samples selected (over {})".format(
-                np.count_nonzero(train_gt), np.count_nonzero(gt)
-            )
+
+
+results = []
+# run the experiment several times
+for run in range(N_RUNS):
+    if TRAIN_GT is not None and TEST_GT is not None:
+        train_gt = open_file(TRAIN_GT)
+        test_gt = open_file(TEST_GT)
+    elif TRAIN_GT is not None:
+        train_gt = open_file(TRAIN_GT)
+        test_gt = np.copy(gt)
+        w, h = test_gt.shape
+        test_gt[(train_gt > 0)[:w, :h]] = 0
+    elif TEST_GT is not None:
+        test_gt = open_file(TEST_GT)
+    else:
+        # Sample random training spectra
+        train_gt, test_gt = sample_gt(gt, SAMPLE_PERCENTAGE, mode=SAMPLING_MODE)
+    print(
+        "{} samples selected (over {})".format(
+            np.count_nonzero(train_gt), np.count_nonzero(gt)
         )
-        print(
-            "Running an experiment with the {} model".format(MODEL),
-            "run {}/{}".format(run + 1, N_RUNS),
+    )
+    print(
+        "Running an experiment with the {} model".format(MODEL),
+        "run {}/{}".format(run + 1, N_RUNS),
+    )
+
+    # display_predictions(convert_to_color(train_gt), viz, caption="Train ground truth")
+    # display_predictions(convert_to_color(test_gt), viz, caption="Test ground truth")
+
+    if MODEL == "SVM_grid":
+        print("Running a grid search SVM")
+        train1 = time.perf_counter()
+        # Start training
+        print("------START TRAIN------")
+        # Grid search SVM (linear and RBF)
+        X_train, y_train = build_dataset(img, train_gt, ignored_labels=IGNORED_LABELS)
+        class_weight = "balanced" if CLASS_BALANCING else None
+        clf = sklearn.svm.SVC(class_weight=class_weight)
+        # Removed n_jobs to put inside classifier
+        #clf = sklearn.model_selection.GridSearchCV(
+        #    clf, SVM_GRID_PARAMS, verbose=5, n_jobs=4
+        #)
+        
+        # Changed verbose=5 to verbose=0 to remove print statements Sept-6
+        clf = sklearn.model_selection.GridSearchCV(
+            clf, SVM_GRID_PARAMS, verbose=0
+        )
+        print("------START TRAIN------")
+        train1 = time.perf_counter()
+        # Start training
+        clf.fit(X_train, y_train)
+        # Stop training
+        training_time = time.perf_counter() - train1
+        save_model(clf, MODEL, DATASET)
+        print("SVM best parameters : {}".format(clf.best_params_))
+        test_time1 = time.perf_counter()
+        # Start testing
+        prediction = clf.predict(img.reshape(-1, N_BANDS))
+        # save_model(clf, MODEL, DATASET)
+        prediction = prediction.reshape(img.shape[:2])
+        # Stop testing
+        testing_time = time.perf_counter() - test_time1
+    elif MODEL == "SVM":
+        # pr.enable()
+        
+        # Start training
+        print("------START TRAIN------")
+        train1 = time.perf_counter()
+        
+        X_train, y_train = build_dataset(img, train_gt, ignored_labels=IGNORED_LABELS)
+        class_weight = "balanced" if CLASS_BALANCING else None
+        clf = sklearn.svm.SVC(class_weight=class_weight)
+        clf.fit(X_train, y_train)
+        print("------STOP TRAIN------")
+        # Stop training
+        training_time = time.perf_counter() - train1
+        save_model(clf, MODEL, DATASET)
+        test_time1 = time.perf_counter()
+        # Start testing
+        prediction = clf.predict(img.reshape(-1, N_BANDS))
+        prediction = prediction.reshape(img.shape[:2])
+        # Stop testing
+        testing_time = time.perf_counter() - test_time1
+        # pr.disable()
+
+        # s = io.StringIO()
+        # sortby = SortKey.CUMULATIVE
+        # ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+        # ps.print_stats()
+        # print(s.getvalue())
+    elif MODEL == "SGD":
+        X_train, y_train = build_dataset(img, train_gt, ignored_labels=IGNORED_LABELS)
+        X_train, y_train = sklearn.utils.shuffle(X_train, y_train)
+        scaler = sklearn.preprocessing.StandardScaler()
+        X_train = scaler.fit_transform(X_train)
+        class_weight = "balanced" if CLASS_BALANCING else None
+        clf = sklearn.linear_model.SGDClassifier(
+            class_weight=class_weight, learning_rate="optimal", tol=1e-3, average=10
+        )
+        clf.fit(X_train, y_train)
+        save_model(clf, MODEL, DATASET)
+        prediction = clf.predict(scaler.transform(img.reshape(-1, N_BANDS)))
+        prediction = prediction.reshape(img.shape[:2])
+    elif MODEL == "nearest":
+        X_train, y_train = build_dataset(img, train_gt, ignored_labels=IGNORED_LABELS)
+        X_train, y_train = sklearn.utils.shuffle(X_train, y_train)
+        class_weight = "balanced" if CLASS_BALANCING else None
+        clf = sklearn.neighbors.KNeighborsClassifier(weights="distance")
+        clf = sklearn.model_selection.GridSearchCV(
+            clf, {"n_neighbors": [1, 3, 5, 10, 20]}, verbose=5, n_jobs=4
+        )
+        clf.fit(X_train, y_train)
+        clf.fit(X_train, y_train)
+        save_model(clf, MODEL, DATASET)
+        prediction = clf.predict(img.reshape(-1, N_BANDS))
+        prediction = prediction.reshape(img.shape[:2])
+    elif MODEL == "randomForest":
+        from sklearn.ensemble import RandomForestClassifier
+        X_train, y_train = build_dataset(img, train_gt, ignored_labels=IGNORED_LABELS)
+        X_train, y_train = sklearn.utils.shuffle(X_train, y_train)
+        class_weight = "balanced" if CLASS_BALANCING else None
+        clf = RandomForestClassifier()
+        clf.fit(X_train, y_train)
+        save_model(clf, MODEL, DATASET)
+        prediction = clf.predict(img.reshape(-1, N_BANDS)) #give the whole dataset
+        prediction = prediction.reshape(img.shape[:2])
+    elif MODEL == "threeLayer":
+        from three_layer_classification.three_layer_model import threeLayerHSIClassification
+        from three_layer_classification.guidedMedianFilter import guidedMedianFilter
+        from sklearn.ensemble import RandomForestClassifier
+
+        
+        X_train, y_train = build_dataset(img, train_gt, ignored_labels=IGNORED_LABELS)
+        X_train, y_train = sklearn.utils.shuffle(X_train, y_train)
+        class_weight = "balanced" if CLASS_BALANCING else None
+        train1 = time.perf_counter()
+    # Start Training
+        #Train the first layer of the system.
+        clf = threeLayerHSIClassification() 
+        clf.fit(X_train, y_train)
+        
+        #transform training samples for Random Forest (Second Layer)
+        X_train_transformed = clf.transform(X_train)  
+        # added np.nan_to_num to allow for Fusion dataset to run
+        X_train_transformed = np.nan_to_num(X_train_transformed)
+        y_train = np.nan_to_num(y_train)
+        rf = RandomForestClassifier(n_estimators=500)
+        rf.fit(X_train_transformed, y_train)
+        
+        #transform all dataset for generating the whole image
+        X_transformed = clf.transform(img.reshape(-1, N_BANDS))
+        # added np.nan_to_num to allow for Fusion dataset to run
+        X_transformed = np.nan_to_num(X_transformed)
+        #Stop Training
+        training_time = time.perf_counter() - train1      
+        
+        #Start Testing
+        test_time1 = time.perf_counter()        
+        #save_model(clf, MODEL, DATASET)
+        prediction = rf.predict(X_transformed)
+        prediction = prediction.reshape(img.shape[:2])
+        #Third layer starts here. GMF is applied to prediction image
+        prediction = guidedMedianFilter(prediction,img)
+        #prediction = prediction.reshape(img.shape[:2])
+        #Stop Testing
+        testing_time = time.perf_counter() - test_time1 
+    else:
+        if CLASS_BALANCING:
+            weights = compute_imf_weights(train_gt, N_CLASSES, IGNORED_LABELS)
+            hyperparams["weights"] = torch.from_numpy(weights)
+        # Neural network
+        model, optimizer, loss, hyperparams = get_model(MODEL, **hyperparams)
+        # Split train set in train/val
+        #train_gt, val_gt = sample_gt(train_gt, 0.95, mode="random")
+        train_gt, val_gt = sample_gt(train_gt, SAMPLE_PERCENTAGE, mode="random")
+        # Generate the dataset
+        train_dataset = HyperX(img, train_gt, **hyperparams)
+        train_loader = data.DataLoader(
+            train_dataset,
+            batch_size=hyperparams["batch_size"],
+            # pin_memory=hyperparams['device'],
+            shuffle=True,
+        )
+        val_dataset = HyperX(img, val_gt, **hyperparams)
+        val_loader = data.DataLoader(
+            val_dataset,
+            # pin_memory=hyperparams['device'],
+            batch_size=hyperparams["batch_size"],
         )
 
-        # display_predictions(convert_to_color(train_gt), viz, caption="Train ground truth")
-        # display_predictions(convert_to_color(test_gt), viz, caption="Test ground truth")
+        print(hyperparams)
+        print("Network :")
+        with torch.no_grad():
+            for input, _ in train_loader:
+                break
+            summary(model.to(hyperparams["device"]), input.size()[1:])
+            # We would like to use device=hyperparams['device'] altough we have
+            # to wait for torchsummary to be fixed first.
 
-        if MODEL == "SVM_grid":
-            print("Running a grid search SVM")
-            train1 = time.perf_counter()
-            # Start training
+        if CHECKPOINT is not None:
+            model.load_state_dict(torch.load(CHECKPOINT))
+
+        try:
             print("------START TRAIN------")
-            # Grid search SVM (linear and RBF)
-            X_train, y_train = build_dataset(img, train_gt, ignored_labels=IGNORED_LABELS)
-            class_weight = "balanced" if CLASS_BALANCING else None
-            clf = sklearn.svm.SVC(class_weight=class_weight)
-            # Removed n_jobs to put inside classifier
-            #clf = sklearn.model_selection.GridSearchCV(
-            #    clf, SVM_GRID_PARAMS, verbose=5, n_jobs=4
-            #)
-            
-            # Changed verbose=5 to verbose=0 to remove print statements Sept-6
-            clf = sklearn.model_selection.GridSearchCV(
-                clf, SVM_GRID_PARAMS, verbose=0
-            )
-            clf.fit(X_train, y_train)
-            # Stop training
-            training_time = time.perf_counter() - train1
-            save_model(clf, MODEL, DATASET)
-            test_time1 = time.perf_counter()
-            print("SVM best parameters : {}".format(clf.best_params_))
-            # Start testing
-            prediction = clf.predict(img.reshape(-1, N_BANDS))
-            # save_model(clf, MODEL, DATASET)
-            prediction = prediction.reshape(img.shape[:2])
-            # Stop testing
-            testing_time = time.perf_counter() - test_time1
-        elif MODEL == "SVM":
-            # pr.enable()
             train1 = time.perf_counter()
-            # Start training
-            print("------START TRAIN------")
-            X_train, y_train = build_dataset(img, train_gt, ignored_labels=IGNORED_LABELS)
-            class_weight = "balanced" if CLASS_BALANCING else None
-            clf = sklearn.svm.SVC(class_weight=class_weight)
-            clf.fit(X_train, y_train)
-            print("------STOP TRAIN------")
-            # Stop training
+            train(
+                model,
+                optimizer,
+                loss,
+                train_loader,
+                hyperparams["epoch"],
+                scheduler=hyperparams["scheduler"],
+                device=hyperparams["device"],
+                supervision=hyperparams["supervision"],
+                val_loader=val_loader,
+                # display=viz,
+            )
             training_time = time.perf_counter() - train1
-            save_model(clf, MODEL, DATASET)
-            test_time1 = time.perf_counter()
-            # Start testing
-            prediction = clf.predict(img.reshape(-1, N_BANDS))
-            prediction = prediction.reshape(img.shape[:2])
-            # Stop testing
-            testing_time = time.perf_counter() - test_time1
-            # pr.disable()
+            print("------END TRAIN------")
+        except KeyboardInterrupt:
+            # Allow the user to stop the training
+            pass
 
-            # s = io.StringIO()
-            # sortby = SortKey.CUMULATIVE
-            # ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
-            # ps.print_stats()
-            # print(s.getvalue())
-        elif MODEL == "SGD":
-            X_train, y_train = build_dataset(img, train_gt, ignored_labels=IGNORED_LABELS)
-            X_train, y_train = sklearn.utils.shuffle(X_train, y_train)
-            scaler = sklearn.preprocessing.StandardScaler()
-            X_train = scaler.fit_transform(X_train)
-            class_weight = "balanced" if CLASS_BALANCING else None
-            clf = sklearn.linear_model.SGDClassifier(
-                class_weight=class_weight, learning_rate="optimal", tol=1e-3, average=10
-            )
-            clf.fit(X_train, y_train)
-            save_model(clf, MODEL, DATASET)
-            prediction = clf.predict(scaler.transform(img.reshape(-1, N_BANDS)))
-            prediction = prediction.reshape(img.shape[:2])
-        elif MODEL == "nearest":
-            X_train, y_train = build_dataset(img, train_gt, ignored_labels=IGNORED_LABELS)
-            X_train, y_train = sklearn.utils.shuffle(X_train, y_train)
-            class_weight = "balanced" if CLASS_BALANCING else None
-            clf = sklearn.neighbors.KNeighborsClassifier(weights="distance")
-            clf = sklearn.model_selection.GridSearchCV(
-                clf, {"n_neighbors": [1, 3, 5, 10, 20]}, verbose=5, n_jobs=4
-            )
-            clf.fit(X_train, y_train)
-            clf.fit(X_train, y_train)
-            save_model(clf, MODEL, DATASET)
-            prediction = clf.predict(img.reshape(-1, N_BANDS))
-            prediction = prediction.reshape(img.shape[:2])
-        elif MODEL == "randomForest":
-            from sklearn.ensemble import RandomForestClassifier
-            X_train, y_train = build_dataset(img, train_gt, ignored_labels=IGNORED_LABELS)
-            X_train, y_train = sklearn.utils.shuffle(X_train, y_train)
-            class_weight = "balanced" if CLASS_BALANCING else None
-            clf = RandomForestClassifier()
-            clf.fit(X_train, y_train)
-            save_model(clf, MODEL, DATASET)
-            prediction = clf.predict(img.reshape(-1, N_BANDS)) #give the whole dataset
-            prediction = prediction.reshape(img.shape[:2])
-        elif MODEL == "threeLayer":
-            from three_layer_classification.three_layer_model import threeLayerHSIClassification
-            from three_layer_classification.guidedMedianFilter import guidedMedianFilter
-            from sklearn.ensemble import RandomForestClassifier
-
-            train1 = time.perf_counter()
-        # Start Training
-            X_train, y_train = build_dataset(img, train_gt, ignored_labels=IGNORED_LABELS)
-            X_train, y_train = sklearn.utils.shuffle(X_train, y_train)
-            class_weight = "balanced" if CLASS_BALANCING else None
-            
-            #Train the first layer of the system.
-            clf = threeLayerHSIClassification() 
-            clf.fit(X_train, y_train)
-            
-            #transform training samples for Random Forest (Second Layer)
-            X_train_transformed = clf.transform(X_train)     
-            rf = RandomForestClassifier(n_estimators=500)
-            rf.fit(X_train_transformed, y_train)
-            
-            #transform all dataset for generating the whole image
-            X_transformed = clf.transform(img.reshape(-1, N_BANDS))
-            #Stop Training
-            training_time = time.perf_counter() - train1      
-            
-            #Start Testing
-            test_time1 = time.perf_counter()        
-            #save_model(clf, MODEL, DATASET)
-            prediction = rf.predict(X_transformed)
-            prediction = prediction.reshape(img.shape[:2])
-            #Third layer starts here. GMF is applied to prediction image
-            prediction = guidedMedianFilter(prediction,img)
-            #Stop Testing
-            testing_time = time.perf_counter() - test_time1 
-        else:
-            if CLASS_BALANCING:
-                weights = compute_imf_weights(train_gt, N_CLASSES, IGNORED_LABELS)
-                hyperparams["weights"] = torch.from_numpy(weights)
-            # Neural network
-            model, optimizer, loss, hyperparams = get_model(MODEL, **hyperparams)
-            # Split train set in train/val
-            train_gt, val_gt = sample_gt(train_gt, 0.95, mode="random")
-            # Generate the dataset
-            train_dataset = HyperX(img, train_gt, **hyperparams)
-            train_loader = data.DataLoader(
-                train_dataset,
-                batch_size=hyperparams["batch_size"],
-                # pin_memory=hyperparams['device'],
-                shuffle=True,
-            )
-            val_dataset = HyperX(img, val_gt, **hyperparams)
-            val_loader = data.DataLoader(
-                val_dataset,
-                # pin_memory=hyperparams['device'],
-                batch_size=hyperparams["batch_size"],
-            )
-
-            print(hyperparams)
-            print("Network :")
-            with torch.no_grad():
-                for input, _ in train_loader:
-                    break
-                summary(model.to(hyperparams["device"]), input.size()[1:])
-                # We would like to use device=hyperparams['device'] altough we have
-                # to wait for torchsummary to be fixed first.
-
-            if CHECKPOINT is not None:
-                model.load_state_dict(torch.load(CHECKPOINT))
-
-            try:
-                print("------START TRAIN------")
-                train1 = time.perf_counter()
-                train(
-                    model,
-                    optimizer,
-                    loss,
-                    train_loader,
-                    hyperparams["epoch"],
-                    scheduler=hyperparams["scheduler"],
-                    device=hyperparams["device"],
-                    supervision=hyperparams["supervision"],
-                    val_loader=val_loader,
-                    # display=viz,
-                )
-                training_time = time.perf_counter() - train1
-                print("------END TRAIN------")
-            except KeyboardInterrupt:
-                # Allow the user to stop the training
-                pass
-
-            print("------START TEST------")
-            test_time1 = time.perf_counter()
-            probabilities = test(model, img, hyperparams)
-            testing_time = time.perf_counter() - test_time1
-            print("------END TEST------")
-            prediction = np.argmax(probabilities, axis=-1)
+        print("------START TEST------")
+        test_time1 = time.perf_counter()
+        probabilities = test(model, img, hyperparams)
+        testing_time = time.perf_counter() - test_time1
+        print("------END TEST------")
+        prediction = np.argmax(probabilities, axis=-1)
 
         run_results = metrics(
             prediction,

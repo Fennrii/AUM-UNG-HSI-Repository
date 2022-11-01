@@ -9,9 +9,7 @@ from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.preprocessing import MinMaxScaler
 import numpy as np
 from tqdm import tqdm
-# added numba and jit in July 11th
-import numba
-from numba import jit
+
 
 class threeLayerHSIClassification(BaseEstimator, ClassifierMixin):
     """Fits a logistic regression model on tree embeddings.
@@ -20,7 +18,6 @@ class threeLayerHSIClassification(BaseEstimator, ClassifierMixin):
         self.kwargs = kwargs
         self.scaler = MinMaxScaler(feature_range=(0, 0.95),clip=True)
 
-    @jit (forceobj = True, parallel=True)
     def fit(self, X, y):
         numOfSamples, numOfFeatures = np.shape(X)
         self.numOfClasses = np.unique(y).shape[0]
@@ -35,17 +32,21 @@ class threeLayerHSIClassification(BaseEstimator, ClassifierMixin):
         #There are 16 references. Each has 200x1 vector.
         self.allReferences = np.zeros((self.numOfClasses,numOfFeatures))
         
-        for classLabel in numba.prange(self.numOfClasses):
+        for classLabel in range(self.numOfClasses):
             P_c = X_scaled[(y == classLabel+1),:] #current class training samples
             P_r = X[(y == classLabel+1),:] #current class training samples
+            #print(P_r)
+            #print(P_r.shape)
             
             #find the contour
             contour = self.findContour(P_c,numOfFeatures)
             self.allContours[classLabel] = contour
             
             #find the reference
-            reference = np.percentile(P_r, 50, axis=0)
-            self.allReferences[classLabel] = reference
+            # add a if statement so that it doesn't get stuck on Fusion
+            if(P_r.shape[0]>0):
+                reference = np.percentile(P_r, 50, axis=0)
+                self.allReferences[classLabel] = reference
     
     
     #% This function transforms a sample using contours and references
@@ -56,7 +57,10 @@ class threeLayerHSIClassification(BaseEstimator, ClassifierMixin):
         X_scaled = self.scaler.transform(X)
     
         #this loops transforms every sample. Finds new features from contour and reference learners.
-        for tsInd in tqdm(range(0,numOfSamples), desc ="Transforming Samples"):
+        # added disable = True to get rid of print statements
+        for tsInd in tqdm(range(0,numOfSamples), desc ="Transforming Samples", disable = True):
+        #Removed tqdm to get rid of printing statements
+        #for tsInd in range(0,numOfSamples)
             P_c = X_scaled[tsInd,:]
             P_r = X[tsInd,:]
             
